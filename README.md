@@ -227,7 +227,9 @@ Esta app ayuda a:
 - [x] Backend con Supabase
 - [x] Autenticación de usuarios
 - [x] Base de datos PostgreSQL con RLS
-- [ ] Actualizar pantallas para usar Supabase
+- [x] Actualizar pantallas para usar Supabase
+- [x] CRUD completo de comidas y transporte
+- [x] Dashboard con datos reales
 - [ ] Sistema de competencia con amigos
 - [ ] Notificaciones push
 - [ ] Registro de consumo de energía

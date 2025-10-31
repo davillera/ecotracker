@@ -1,36 +1,65 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { getTodayTransport, createTransport, deleteTransport } from '@/lib/transport';
 
 type Trip = {
   id: string;
   distance: number;
-  type: 'coche' | 'bus' | 'metro' | 'bici' | 'caminando';
+  type: 'coche' | 'autobus' | 'metro' | 'bicicleta' | 'caminando' | 'moto';
   co2: number;
-  date: Date;
+  created_at: string;
 };
 
 const TRANSPORT_EMISSIONS = {
   coche: 0.192,      // kg CO2 por km
-  bus: 0.089,        // kg CO2 por km
+  moto: 0.103,       // kg CO2 por km
+  autobus: 0.089,    // kg CO2 por km
   metro: 0.041,      // kg CO2 por km
-  bici: 0,           // kg CO2 por km
+  bicicleta: 0,      // kg CO2 por km
   caminando: 0,      // kg CO2 por km
 };
 
 const TRANSPORT_ICONS = {
   coche: '🚗',
-  bus: '🚌',
+  moto: '🏍️',
+  autobus: '🚌',
   metro: '🚇',
-  bici: '🚴',
+  bicicleta: '🚴',
   caminando: '🚶',
+};
+
+const TRANSPORT_LABELS = {
+  coche: 'Coche',
+  moto: 'Moto',
+  autobus: 'Autobús',
+  metro: 'Metro',
+  bicicleta: 'Bicicleta',
+  caminando: 'Caminando',
 };
 
 export default function TransportScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [distance, setDistance] = useState('');
   const [selectedType, setSelectedType] = useState<keyof typeof TRANSPORT_EMISSIONS>('coche');
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const addTrip = () => {
+  useEffect(() => {
+    loadTrips();
+  }, []);
+
+  const loadTrips = async () => {
+    setRefreshing(true);
+    const { data, error } = await getTodayTransport();
+    if (error) {
+      console.error('Error cargando viajes:', error);
+    } else if (data) {
+      setTrips(data as Trip[]);
+    }
+    setRefreshing(false);
+  };
+
+  const addTrip = async () => {
     const distanceNum = parseFloat(distance);
     
     if (isNaN(distanceNum) || distanceNum <= 0) {
@@ -38,17 +67,22 @@ export default function TransportScreen() {
       return;
     }
 
+    setLoading(true);
     const co2Emission = distanceNum * TRANSPORT_EMISSIONS[selectedType];
 
-    const newTrip: Trip = {
-      id: Date.now().toString(),
-      distance: distanceNum,
+    const { data, error } = await createTransport({
       type: selectedType,
+      distance: distanceNum,
       co2: co2Emission,
-      date: new Date(),
-    };
+    });
 
-    setTrips([newTrip, ...trips]);
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Error', 'No se pudo registrar el viaje. Intenta de nuevo.');
+      return;
+    }
+
     setDistance('');
     
     if (co2Emission === 0) {
@@ -56,6 +90,30 @@ export default function TransportScreen() {
     } else {
       Alert.alert('¡Registrado!', `Tu viaje generó ${co2Emission.toFixed(2)} kg de CO₂`);
     }
+    
+    loadTrips();
+  };
+
+  const handleDelete = async (id: string) => {
+    Alert.alert(
+      'Eliminar viaje',
+      '¿Estás seguro de eliminar este registro?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await deleteTransport(id);
+            if (error) {
+              Alert.alert('Error', 'No se pudo eliminar el viaje');
+            } else {
+              loadTrips();
+            }
+          },
+        },
+      ]
+    );
   };
 
   const totalCO2 = trips.reduce((sum, trip) => sum + trip.co2, 0);
@@ -80,13 +138,14 @@ export default function TransportScreen() {
                   selectedType === type && styles.typeButtonSelected,
                 ]}
                 onPress={() => setSelectedType(type)}
+                disabled={loading}
               >
                 <Text style={styles.typeIcon}>{TRANSPORT_ICONS[type]}</Text>
                 <Text style={[
                   styles.typeButtonText,
                   selectedType === type && styles.typeButtonTextSelected,
                 ]}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {TRANSPORT_LABELS[type]}
                 </Text>
                 <Text style={styles.typeEmission}>
                   {TRANSPORT_EMISSIONS[type] === 0 
@@ -105,10 +164,19 @@ export default function TransportScreen() {
             placeholder="Ej: 5.5"
             placeholderTextColor="#999"
             keyboardType="decimal-pad"
+            editable={!loading}
           />
 
-          <Pressable style={styles.addButton} onPress={addTrip}>
-            <Text style={styles.addButtonText}>+ Registrar Viaje</Text>
+          <Pressable 
+            style={[styles.addButton, loading && styles.addButtonDisabled]} 
+            onPress={addTrip}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.addButtonText}>+ Registrar Viaje</Text>
+            )}
           </Pressable>
         </View>
 
@@ -124,34 +192,45 @@ export default function TransportScreen() {
         </View>
 
         <View style={styles.historySection}>
-          <Text style={styles.historyTitle}>Historial de viajes</Text>
-          {trips.length === 0 ? (
+          <View style={styles.historyHeader}>
+            <Text style={styles.historyTitle}>Historial de hoy</Text>
+            <Pressable onPress={loadTrips} disabled={refreshing}>
+              <Text style={styles.refreshText}>{refreshing ? '⟳' : '↻'}</Text>
+            </Pressable>
+          </View>
+          {refreshing ? (
+            <ActivityIndicator size="large" color="#2563eb" style={{ marginVertical: 20 }} />
+          ) : trips.length === 0 ? (
             <Text style={styles.emptyText}>No hay viajes registrados aún</Text>
           ) : (
             trips.map((trip) => (
-              <View key={trip.id} style={styles.historyItem}>
+              <Pressable
+                key={trip.id}
+                style={styles.historyItem}
+                onLongPress={() => handleDelete(trip.id)}
+              >
                 <View style={styles.historyItemLeft}>
                   <Text style={styles.historyItemIcon}>{TRANSPORT_ICONS[trip.type]}</Text>
                   <View>
                     <Text style={styles.historyItemType}>
-                      {trip.type.charAt(0).toUpperCase() + trip.type.slice(1)}
+                      {TRANSPORT_LABELS[trip.type]}
                     </Text>
-                    <Text style={styles.historyItemDistance}>{trip.distance} km</Text>
+                    <Text style={styles.historyItemDistance}>{Number(trip.distance).toFixed(1)} km</Text>
                     <Text style={styles.historyItemTime}>
-                      {trip.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(trip.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </View>
                 </View>
                 <View style={styles.historyItemRight}>
                   <Text style={[
                     styles.historyItemCO2,
-                    trip.co2 === 0 && styles.historyItemCO2Zero
+                    Number(trip.co2) === 0 && styles.historyItemCO2Zero
                   ]}>
-                    {trip.co2 === 0 ? '0' : trip.co2.toFixed(2)} kg
+                    {Number(trip.co2) === 0 ? '0' : Number(trip.co2).toFixed(2)} kg
                   </Text>
                   <Text style={styles.historyItemLabel}>CO₂</Text>
                 </View>
-              </View>
+              </Pressable>
             ))
           )}
         </View>
@@ -254,10 +333,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
+  addButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
   addButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  refreshText: {
+    fontSize: 24,
+    color: '#2563eb',
   },
   statsRow: {
     flexDirection: 'row',

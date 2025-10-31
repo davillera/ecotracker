@@ -8,12 +8,12 @@ const expoConfig = Constants.expoConfig;
 const supabaseUrl = 
   process.env.EXPO_PUBLIC_SUPABASE_URL || 
   expoConfig?.extra?.supabaseUrl ||
-  'https://eeargnqbrnlkvucuxyrj.supabase.co'; // Fallback temporal
+  '';
 
 const supabaseAnonKey = 
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   expoConfig?.extra?.supabaseAnonKey ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlYXJnbnFicm5sa3Z1Y3V4eXJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjY1ODcsImV4cCI6MjA3NjkwMjU4N30.3IyPJIY-XiqPaRhq5VBigPw6Q8fSRxNhkbwqmQezh84'; // Fallback temporal
+  '';
 
 // Validar credenciales
 console.log('🔧 Supabase Config:');

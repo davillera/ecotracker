@@ -1,34 +1,86 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { getDashboardStats, getWeeklyData, getCategoryBreakdown } from '@/lib/dashboard';
 
 export default function DashboardScreen() {
-  // Datos simulados - en una app real vendrían de un contexto o base de datos
-  const weekData = [
-    { day: 'Lun', co2: 8.5 },
-    { day: 'Mar', co2: 6.2 },
-    { day: 'Mié', co2: 7.8 },
-    { day: 'Jue', co2: 5.4 },
-    { day: 'Vie', co2: 9.1 },
-    { day: 'Sáb', co2: 4.2 },
-    { day: 'Dom', co2: 3.8 },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [todayStats, setTodayStats] = useState({
+    total_co2: 0,
+    meals_co2: 0,
+    transport_co2: 0,
+    meals_count: 0,
+    transport_count: 0,
+  });
+  const [weekData, setWeekData] = useState<Array<{ date: string; meals_co2: number; transport_co2: number; total_co2: number }>>([]);
+  const [breakdown, setBreakdown] = useState<any>(null);
 
-  const totalWeekCO2 = weekData.reduce((sum, day) => sum + day.co2, 0);
-  const avgDailyCO2 = totalWeekCO2 / weekData.length;
-  const maxCO2 = Math.max(...weekData.map(d => d.co2));
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const loadDashboard = async () => {
+    setLoading(true);
+    const [statsResult, weeklyResult, breakdownResult] = await Promise.all([
+      getDashboardStats(),
+      getWeeklyData(),
+      getCategoryBreakdown(),
+    ]);
+
+    if (statsResult.data) {
+      setTodayStats(statsResult.data);
+    }
+    if (weeklyResult.data) {
+      setWeekData(weeklyResult.data);
+    }
+    if (breakdownResult.data) {
+      setBreakdown(breakdownResult.data);
+    }
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadDashboard();
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#f59e0b" />
+        <Text style={{ marginTop: 16, color: '#666' }}>Cargando datos...</Text>
+      </View>
+    );
+  }
+
+  const totalWeekCO2 = weekData.reduce((sum, day) => sum + day.total_co2, 0);
+  const avgDailyCO2 = weekData.length > 0 ? totalWeekCO2 / weekData.length : 0;
+  const maxCO2 = weekData.length > 0 ? Math.max(...weekData.map(d => d.total_co2)) : 1;
+
+  const getDayLabel = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    return days[date.getDay()];
+  };
 
   const stats = [
-    { label: 'Total Semanal', value: `${totalWeekCO2.toFixed(1)} kg`, color: '#16a34a', icon: '🌍' },
-    { label: 'Promedio Diario', value: `${avgDailyCO2.toFixed(1)} kg`, color: '#2563eb', icon: '📊' },
-    { label: 'Comidas', value: '18 reg.', color: '#16a34a', icon: '🍽️' },
-    { label: 'Viajes', value: '12 reg.', color: '#2563eb', icon: '🚗' },
+    { label: 'Hoy', value: `${todayStats.total_co2.toFixed(1)} kg`, color: '#16a34a', icon: '🌍' },
+    { label: 'Promedio Semanal', value: `${avgDailyCO2.toFixed(1)} kg`, color: '#2563eb', icon: '📊' },
+    { label: 'Comidas Hoy', value: `${todayStats.meals_count} reg.`, color: '#16a34a', icon: '🍽️' },
+    { label: 'Viajes Hoy', value: `${todayStats.transport_count} reg.`, color: '#2563eb', icon: '🚗' },
   ];
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>📊 Dashboard</Text>
-        <Text style={styles.headerSubtitle}>Tu impacto ambiental semanal</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>📊 Dashboard</Text>
+          <Text style={styles.headerSubtitle}>Tu impacto ambiental</Text>
+        </View>
+        <Pressable onPress={handleRefresh} disabled={refreshing}>
+          <Text style={styles.refreshButton}>{refreshing ? '⟳' : '↻'}</Text>
+        </Pressable>
       </View>
 
       <ScrollView style={styles.content}>
@@ -43,21 +95,25 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Emisiones por día (kg CO₂)</Text>
-          <View style={styles.chart}>
-            {weekData.map((day, index) => {
-              const barHeight = (day.co2 / maxCO2) * 150;
-              return (
-                <View key={index} style={styles.barContainer}>
-                  <Text style={styles.barValue}>{day.co2.toFixed(1)}</Text>
-                  <View style={styles.barWrapper}>
-                    <View style={[styles.bar, { height: barHeight }]} />
+          <Text style={styles.chartTitle}>Emisiones últimos 7 días (kg CO₂)</Text>
+          {weekData.length === 0 ? (
+            <Text style={styles.emptyText}>No hay datos suficientes aún</Text>
+          ) : (
+            <View style={styles.chart}>
+              {weekData.map((day, index) => {
+                const barHeight = maxCO2 > 0 ? (day.total_co2 / maxCO2) * 150 : 0;
+                return (
+                  <View key={index} style={styles.barContainer}>
+                    <Text style={styles.barValue}>{day.total_co2.toFixed(1)}</Text>
+                    <View style={styles.barWrapper}>
+                      <View style={[styles.bar, { height: Math.max(barHeight, 2) }]} />
+                    </View>
+                    <Text style={styles.barLabel}>{getDayLabel(day.date)}</Text>
                   </View>
-                  <Text style={styles.barLabel}>{day.day}</Text>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         <View style={styles.compareCard}>
@@ -66,26 +122,34 @@ export default function DashboardScreen() {
           
           <View style={styles.compareBar}>
             <View style={styles.compareBarSection}>
-              <Text style={styles.compareLabel}>Tú</Text>
-              <View style={[styles.compareBarFill, { width: '45%', backgroundColor: '#16a34a' }]} />
-              <Text style={styles.compareValue}>{avgDailyCO2.toFixed(1)} kg/día</Text>
+              <Text style={styles.compareLabel}>Tú (hoy)</Text>
+              <View style={[styles.compareBarFill, { width: `${Math.min((todayStats.total_co2 / 12.5) * 100, 100)}%`, backgroundColor: '#16a34a' }]} />
+              <Text style={styles.compareValue}>{todayStats.total_co2.toFixed(1)} kg</Text>
             </View>
             <View style={styles.compareBarSection}>
               <Text style={styles.compareLabel}>Global</Text>
-              <View style={[styles.compareBarFill, { width: '70%', backgroundColor: '#ef4444' }]} />
+              <View style={[styles.compareBarFill, { width: '100%', backgroundColor: '#ef4444' }]} />
               <Text style={styles.compareValue}>12.5 kg/día</Text>
             </View>
           </View>
 
-          <View style={styles.messageBanner}>
-            <Text style={styles.messageBannerText}>
-              ¡Genial! Estás 35% por debajo del promedio 🎉
-            </Text>
-          </View>
+          {todayStats.total_co2 < 12.5 ? (
+            <View style={styles.messageBanner}>
+              <Text style={styles.messageBannerText}>
+                ¡Genial! Estás {((1 - todayStats.total_co2 / 12.5) * 100).toFixed(0)}% por debajo del promedio 🎉
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.messageBanner, { backgroundColor: '#fee2e2', borderColor: '#ef4444' }]}>
+              <Text style={[styles.messageBannerText, { color: '#991b1b' }]}>
+                Intenta reducir tus emisiones hoy 💪
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.breakdownCard}>
-          <Text style={styles.breakdownTitle}>Desglose por categoría</Text>
+          <Text style={styles.breakdownTitle}>Desglose de hoy</Text>
           
           <View style={styles.breakdownItem}>
             <View style={styles.breakdownLeft}>
@@ -94,9 +158,15 @@ export default function DashboardScreen() {
             </View>
             <View style={styles.breakdownRight}>
               <View style={styles.breakdownBar}>
-                <View style={[styles.breakdownBarFill, { width: '60%', backgroundColor: '#16a34a' }]} />
+                <View style={[
+                  styles.breakdownBarFill, 
+                  { 
+                    width: todayStats.total_co2 > 0 ? `${(todayStats.meals_co2 / todayStats.total_co2) * 100}%` : '0%', 
+                    backgroundColor: '#16a34a' 
+                  }
+                ]} />
               </View>
-              <Text style={styles.breakdownValue}>18.2 kg</Text>
+              <Text style={styles.breakdownValue}>{todayStats.meals_co2.toFixed(1)} kg</Text>
             </View>
           </View>
 
@@ -107,22 +177,15 @@ export default function DashboardScreen() {
             </View>
             <View style={styles.breakdownRight}>
               <View style={styles.breakdownBar}>
-                <View style={[styles.breakdownBarFill, { width: '75%', backgroundColor: '#2563eb' }]} />
+                <View style={[
+                  styles.breakdownBarFill, 
+                  { 
+                    width: todayStats.total_co2 > 0 ? `${(todayStats.transport_co2 / todayStats.total_co2) * 100}%` : '0%', 
+                    backgroundColor: '#2563eb' 
+                  }
+                ]} />
               </View>
-              <Text style={styles.breakdownValue}>26.8 kg</Text>
-            </View>
-          </View>
-
-          <View style={styles.breakdownItem}>
-            <View style={styles.breakdownLeft}>
-              <Text style={styles.breakdownIcon}>⚡</Text>
-              <Text style={styles.breakdownLabel}>Energía</Text>
-            </View>
-            <View style={styles.breakdownRight}>
-              <View style={styles.breakdownBar}>
-                <View style={[styles.breakdownBarFill, { width: '40%', backgroundColor: '#f59e0b' }]} />
-              </View>
-              <Text style={styles.breakdownValue}>10.0 kg</Text>
+              <Text style={styles.breakdownValue}>{todayStats.transport_co2.toFixed(1)} kg</Text>
             </View>
           </View>
         </View>
@@ -140,6 +203,9 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: 60,
     backgroundColor: '#f59e0b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 26,
@@ -150,6 +216,16 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.9)',
+  },
+  refreshButton: {
+    fontSize: 28,
+    color: 'white',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 14,
+    padding: 20,
   },
   content: {
     flex: 1,

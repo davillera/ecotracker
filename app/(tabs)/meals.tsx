@@ -1,22 +1,31 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { getTodayMeals, createMeal, deleteMeal } from '@/lib/meals';
 
 type Meal = {
   id: string;
   name: string;
-  type: 'vegano' | 'vegetariano' | 'pollo' | 'carne' | 'pescado';
+  type: 'vegano' | 'vegetariano' | 'carne_blanca' | 'carne_roja' | 'pescado';
   grams: number;
   co2: number;
-  date: Date;
+  created_at: string;
 };
 
 // Emisiones de CO₂ por cada 100 gramos
 const MEAL_EMISSIONS = {
   vegano: 0.09,       // 0.9 kg CO₂ por kg = 0.09 kg por 100g
   vegetariano: 0.13,  // 1.3 kg CO₂ por kg = 0.13 kg por 100g
-  pollo: 0.30,        // 3.0 kg CO₂ por kg = 0.30 kg por 100g
+  carne_blanca: 0.30,        // 3.0 kg CO₂ por kg = 0.30 kg por 100g
   pescado: 0.25,      // 2.5 kg CO₂ por kg = 0.25 kg por 100g
-  carne: 0.65,        // 6.5 kg CO₂ por kg = 0.65 kg por 100g
+  carne_roja: 0.65,        // 6.5 kg CO₂ por kg = 0.65 kg por 100g
+};
+
+const MEAL_LABELS = {
+  vegano: 'Vegano',
+  vegetariano: 'Vegetariano',
+  carne_blanca: 'Pollo/Pavo',
+  carne_roja: 'Carne Roja',
+  pescado: 'Pescado',
 };
 
 export default function MealsScreen() {
@@ -24,8 +33,25 @@ export default function MealsScreen() {
   const [mealName, setMealName] = useState('');
   const [grams, setGrams] = useState('');
   const [selectedType, setSelectedType] = useState<keyof typeof MEAL_EMISSIONS>('vegetariano');
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const addMeal = () => {
+  useEffect(() => {
+    loadMeals();
+  }, []);
+
+  const loadMeals = async () => {
+    setRefreshing(true);
+    const { data, error } = await getTodayMeals();
+    if (error) {
+      console.error('Error cargando comidas:', error);
+    } else if (data) {
+      setMeals(data as Meal[]);
+    }
+    setRefreshing(false);
+  };
+
+  const addMeal = async () => {
     if (!mealName.trim()) {
       Alert.alert('Error', 'Por favor ingresa un nombre para la comida');
       return;
@@ -37,22 +63,50 @@ export default function MealsScreen() {
       return;
     }
 
+    setLoading(true);
     // Calcular CO₂ según los gramos: (gramos / 100) * emisión_por_100g
     const co2Emission = (gramsNum / 100) * MEAL_EMISSIONS[selectedType];
 
-    const newMeal: Meal = {
-      id: Date.now().toString(),
+    const { data, error } = await createMeal({
       name: mealName,
       type: selectedType,
       grams: gramsNum,
       co2: co2Emission,
-      date: new Date(),
-    };
+    });
 
-    setMeals([newMeal, ...meals]);
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Error', 'No se pudo registrar la comida. Intenta de nuevo.');
+      return;
+    }
+
     setMealName('');
     setGrams('');
     Alert.alert('¡Registrado!', `${gramsNum}g de ${mealName} generó ${co2Emission.toFixed(2)} kg de CO₂`);
+    loadMeals();
+  };
+
+  const handleDelete = async (id: string) => {
+    Alert.alert(
+      'Eliminar comida',
+      '¿Estás seguro de eliminar este registro?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await deleteMeal(id);
+            if (error) {
+              Alert.alert('Error', 'No se pudo eliminar la comida');
+            } else {
+              loadMeals();
+            }
+          },
+        },
+      ]
+    );
   };
 
   const totalCO2 = meals.reduce((sum, meal) => sum + meal.co2, 0);
@@ -74,6 +128,7 @@ export default function MealsScreen() {
             onChangeText={setMealName}
             placeholder="Ej: Ensalada César"
             placeholderTextColor="#999"
+            editable={!loading}
           />
 
           <Text style={styles.label}>Cantidad (gramos)</Text>
@@ -84,6 +139,7 @@ export default function MealsScreen() {
             placeholder="Ej: 250"
             placeholderTextColor="#999"
             keyboardType="numeric"
+            editable={!loading}
           />
 
           <Text style={styles.label}>Tipo de comida</Text>
@@ -96,20 +152,29 @@ export default function MealsScreen() {
                   selectedType === type && styles.typeButtonSelected,
                 ]}
                 onPress={() => setSelectedType(type)}
+                disabled={loading}
               >
                 <Text style={[
                   styles.typeButtonText,
                   selectedType === type && styles.typeButtonTextSelected,
                 ]}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {MEAL_LABELS[type]}
                 </Text>
                 <Text style={styles.typeEmission}>{(MEAL_EMISSIONS[type] * 10).toFixed(1)} kg/kg</Text>
               </Pressable>
             ))}
           </View>
 
-          <Pressable style={styles.addButton} onPress={addMeal}>
-            <Text style={styles.addButtonText}>+ Registrar Comida</Text>
+          <Pressable 
+            style={[styles.addButton, loading && styles.addButtonDisabled]} 
+            onPress={addMeal}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.addButtonText}>+ Registrar Comida</Text>
+            )}
           </Pressable>
         </View>
 
@@ -122,26 +187,37 @@ export default function MealsScreen() {
         </View>
 
         <View style={styles.historySection}>
-          <Text style={styles.historyTitle}>Historial</Text>
-          {meals.length === 0 ? (
+          <View style={styles.historyHeader}>
+            <Text style={styles.historyTitle}>Historial de hoy</Text>
+            <Pressable onPress={loadMeals} disabled={refreshing}>
+              <Text style={styles.refreshText}>{refreshing ? '⟳' : '↻'}</Text>
+            </Pressable>
+          </View>
+          {refreshing ? (
+            <ActivityIndicator size="large" color="#16a34a" style={{ marginVertical: 20 }} />
+          ) : meals.length === 0 ? (
             <Text style={styles.emptyText}>No hay comidas registradas aún</Text>
           ) : (
             meals.map((meal) => (
-              <View key={meal.id} style={styles.historyItem}>
+              <Pressable
+                key={meal.id}
+                style={styles.historyItem}
+                onLongPress={() => handleDelete(meal.id)}
+              >
                 <View style={styles.historyItemHeader}>
                   <Text style={styles.historyItemName}>{meal.name}</Text>
-                  <Text style={styles.historyItemCO2}>{meal.co2.toFixed(2)} kg CO₂</Text>
+                  <Text style={styles.historyItemCO2}>{Number(meal.co2).toFixed(2)} kg CO₂</Text>
                 </View>
                 <View style={styles.historyItemDetails}>
                   <Text style={styles.historyItemType}>
-                    {meal.type.charAt(0).toUpperCase() + meal.type.slice(1)}
+                    {MEAL_LABELS[meal.type]}
                   </Text>
                   <Text style={styles.historyItemGrams}>{meal.grams}g</Text>
                   <Text style={styles.historyItemTime}>
-                    {meal.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(meal.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             ))
           )}
         </View>
@@ -239,10 +315,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
+  addButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
   addButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  refreshText: {
+    fontSize: 24,
+    color: '#16a34a',
   },
   statsCard: {
     backgroundColor: '#dcfce7',
