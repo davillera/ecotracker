@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "setup": "echo '⚠️  Recuerda configurar .env con tus credenciales de Supabase' && echo 'Ver SUPABASE_SETUP.md para instrucciones'",
-    "check-supabase": "node ./scripts/check-supabase.js"
+    "check-supabase": "node ./scripts/check-supabase.js",
+    "init-db": "node ./scripts/init-database.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -48,3 +48,6 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+// Export default para compatibilidad con expo-router
+export default AuthProvider;
