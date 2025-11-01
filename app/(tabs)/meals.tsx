@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { getTodayMeals, createMeal, deleteMeal } from '@/lib/meals';
+import { supabase } from '@/lib/supabase';
 
 type Meal = {
   id: string;
@@ -38,6 +39,39 @@ export default function MealsScreen() {
 
   useEffect(() => {
     loadMeals();
+
+    // Suscribirse a cambios en tiempo real
+    let channel: any = null;
+
+    const setupRealtimeSubscription = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      channel = supabase
+        .channel('meals-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'meals',
+            filter: `user_id=eq.${session.user.id}`,
+          },
+          (payload) => {
+            console.log('Meal change detected:', payload);
+            loadMeals();
+          }
+        )
+        .subscribe();
+    };
+
+    setupRealtimeSubscription();
+
+    return () => {
+      if (channel) {
+        channel.unsubscribe();
+      }
+    };
   }, []);
 
   const loadMeals = async () => {

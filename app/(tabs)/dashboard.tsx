@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { getDashboardStats, getWeeklyData, getCategoryBreakdown } from '@/lib/dashboard';
+import { supabase } from '@/lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
@@ -15,35 +17,94 @@ export default function DashboardScreen() {
   const [weekData, setWeekData] = useState<Array<{ date: string; meals_co2: number; transport_co2: number; total_co2: number }>>([]);
   const [breakdown, setBreakdown] = useState<any>(null);
 
-  useEffect(() => {
+  const loadDashboard = async () => {
+    try {
+      console.log('📊 Loading dashboard data...');
+      const [statsResult, weeklyResult, breakdownResult] = await Promise.all([
+        getDashboardStats(),
+        getWeeklyData(),
+        getCategoryBreakdown(),
+      ]);
+
+      if (statsResult.data) {
+        console.log('📈 Dashboard stats:', statsResult.data);
+        setTodayStats(statsResult.data);
+      }
+      if (weeklyResult.data) {
+        setWeekData(weeklyResult.data);
+      }
+      if (breakdownResult.data) {
+        setBreakdown(breakdownResult.data);
+      }
+    } catch (error) {
+      console.error('❌ Error loading dashboard:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
     loadDashboard();
   }, []);
 
-  const loadDashboard = async () => {
-    setLoading(true);
-    const [statsResult, weeklyResult, breakdownResult] = await Promise.all([
-      getDashboardStats(),
-      getWeeklyData(),
-      getCategoryBreakdown(),
-    ]);
+  // Cargar al montar y cuando la pantalla está en foco
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Dashboard focused, loading data...');
+      loadDashboard();
+    }, [])
+  );
 
-    if (statsResult.data) {
-      setTodayStats(statsResult.data);
-    }
-    if (weeklyResult.data) {
-      setWeekData(weeklyResult.data);
-    }
-    if (breakdownResult.data) {
-      setBreakdown(breakdownResult.data);
-    }
-    setLoading(false);
-    setRefreshing(false);
-  };
-
-  const handleRefresh = () => {
-    setRefreshing(true);
+  useEffect(() => {
     loadDashboard();
-  };
+
+    // Suscribirse a cambios en tiempo real para meals
+    const mealsChannel = supabase
+      .channel('meals-changes-dashboard-screen')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'meals',
+        },
+        (payload) => {
+          console.log('🍽️ Meals changed in dashboard screen:', payload.eventType);
+          loadDashboard();
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Dashboard meals subscription:', status);
+      });
+
+    // Suscribirse a cambios en tiempo real para transport
+    const transportChannel = supabase
+      .channel('transport-changes-dashboard-screen')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transport',
+        },
+        (payload) => {
+          console.log('🚗 Transport changed in dashboard screen:', payload.eventType);
+          loadDashboard();
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Dashboard transport subscription:', status);
+      });
+
+    // Cleanup
+    return () => {
+      console.log('🧹 Cleaning up dashboard subscriptions');
+      mealsChannel.unsubscribe();
+      transportChannel.unsubscribe();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -83,7 +144,17 @@ export default function DashboardScreen() {
         </Pressable>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh} 
+            colors={['#f59e0b']}
+            tintColor="#f59e0b"
+          />
+        }
+      >
         <View style={styles.statsGrid}>
           {stats.map((stat, index) => (
             <View key={index} style={[styles.statCard, { borderLeftColor: stat.color }]}>

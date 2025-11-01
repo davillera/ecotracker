@@ -1,9 +1,11 @@
-# 🚀 ARREGLAR APLICACIÓN - PASOS URGENTES
+# 🚀 GUÍA DE CONFIGURACIÓN - EcoTracker
 
-## ⚠️ PROBLEMA ACTUAL
-Las tablas de Supabase NO existen. La aplicación no puede funcionar sin ellas.
+## ✅ ESTADO ACTUAL
+- Código actualizado con tiempo real
+- Dashboard mejorado con estadísticas en vivo
+- Listo para usar después de configurar Supabase
 
-## ✅ SOLUCIÓN (5 MINUTOS)
+## 🚀 CONFIGURACIÓN COMPLETA (5 MINUTOS)
 
 ### PASO 1: Crear las tablas en Supabase
 
@@ -32,7 +34,16 @@ Las tablas de Supabase NO existen. La aplicación no puede funcionar sin ellas.
      - ✅ `meals`
      - ✅ `transport`
 
-### PASO 2: Reinicia la aplicación
+### PASO 2: Habilita Realtime (NUEVO - Opcional pero recomendado)
+
+Para que el dashboard se actualice automáticamente:
+
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.meals;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.transport;
+```
+
+### PASO 3: Reinicia la aplicación
 
 ```bash
 # Detén el servidor si está corriendo (Ctrl + C)
@@ -43,11 +54,13 @@ npx expo start -c
 
 ## 🎉 LISTO!
 
-Ahora la aplicación debería funcionar correctamente:
+Ahora la aplicación funciona completamente:
 - ✅ El AuthContext tiene export default
 - ✅ Los paquetes están actualizados
 - ✅ Las tablas de Supabase están creadas
 - ✅ Row Level Security (RLS) está configurado
+- ✅ Dashboard con estadísticas en tiempo real
+- ✅ Actualizaciones automáticas sin refresh
 
 ## 🧪 PROBAR LA APLICACIÓN
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { getTodayTransport, createTransport, deleteTransport } from '@/lib/transport';
+import { supabase } from '@/lib/supabase';
 
 type Trip = {
   id: string;
@@ -46,6 +47,39 @@ export default function TransportScreen() {
 
   useEffect(() => {
     loadTrips();
+
+    // Suscribirse a cambios en tiempo real
+    let channel: any = null;
+
+    const setupRealtimeSubscription = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      channel = supabase
+        .channel('transport-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'transport',
+            filter: `user_id=eq.${session.user.id}`,
+          },
+          (payload) => {
+            console.log('Transport change detected:', payload);
+            loadTrips();
+          }
+        )
+        .subscribe();
+    };
+
+    setupRealtimeSubscription();
+
+    return () => {
+      if (channel) {
+        channel.unsubscribe();
+      }
+    };
   }, []);
 
   const loadTrips = async () => {
