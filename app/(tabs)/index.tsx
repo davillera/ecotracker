@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
-import { useAuth } from '../src/context/AuthContext';
 import { getDashboardStats } from '@/lib/dashboard';
 import { supabase } from '@/lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen() {
-  const { signOut } = useAuth();
   const [stats, setStats] = useState({
     total_co2: 0,
     meals_co2: 0,
@@ -158,10 +156,6 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
-
-      <Pressable onPress={signOut} style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
-      </Pressable>
     </View>
   );
 }
@@ -173,7 +167,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
-    paddingBottom: 100,
+    paddingBottom: 24,
   },
   header: {
     marginTop: 40,
@@ -276,26 +270,5 @@ const styles = StyleSheet.create({
   cardText: {
     fontSize: 14,
     color: '#666',
-  },
-  logoutButton: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#e11d48',
-    padding: 18,
-    alignItems: 'center',
-    margin: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  logoutText: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 16,
   },
 });

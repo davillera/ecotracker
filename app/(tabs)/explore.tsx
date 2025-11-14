@@ -1,7 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
-import { useAuth } from '../src/context/AuthContext';
-import { useRouter } from 'expo-router';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 
 const tips = [
   {
@@ -84,27 +82,6 @@ const getImpactColor = (impact: string) => {
 };
 
 export default function ExploreScreen() {
-  const { user, signOut } = useAuth();
-  const router = useRouter();
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que quieres cerrar sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            router.replace('/login');
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -112,27 +89,9 @@ export default function ExploreScreen() {
           <Text style={styles.headerTitle}>💡 Tips Ecológicos</Text>
           <Text style={styles.headerSubtitle}>Consejos para reducir tu huella de carbono</Text>
         </View>
-        <Pressable onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Salir</Text>
-        </Pressable>
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Perfil de usuario */}
-        {user && (
-          <View style={styles.profileCard}>
-            <View style={styles.profileIcon}>
-              <Text style={{ fontSize: 32 }}>👤</Text>
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>
-                {user.user_metadata?.name || user.email?.split('@')[0]}
-              </Text>
-              <Text style={styles.profileEmail}>{user.email}</Text>
-            </View>
-          </View>
-        )}
-
         <View style={styles.infoBanner}>
           <Text style={styles.infoBannerTitle}>¿Sabías que?</Text>
           <Text style={styles.infoBannerText}>
@@ -192,57 +151,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.9)',
   },
-  logoutButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  logoutText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 14,
-  },
   content: {
     flex: 1,
     padding: 16,
-  },
-  profileCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  profileIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#e8f5e9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 4,
-  },
-  profileEmail: {
-    fontSize: 14,
-    color: '#666',
   },
   infoBanner: {
     backgroundColor: '#dbeafe',

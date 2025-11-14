@@ -1,0 +1,102 @@
+╔══════════════════════════════════════════════════════════════╗
+║     🚨 EJECUTAR ESTE SCRIPT AHORA - Sistema de Amigos       ║
+╚══════════════════════════════════════════════════════════════╝
+
+📍 LINK DIRECTO (Click aquí):
+   https://supabase.com/dashboard/project/vrusokequxdingvujzvc/sql/new
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ PASOS SIMPLES (5 minutos):
+
+1️⃣  Click en el link de arriba
+   → Se abrirá el SQL Editor de Supabase
+
+2️⃣  Abre el archivo: database/FIX_FRIENDS_RLS.sql
+   → Está en tu carpeta ecotracker/database/
+   
+3️⃣  Selecciona TODO el contenido (Ctrl+A)
+   → Copia (Ctrl+C)
+
+4️⃣  Pega en el SQL Editor de Supabase (Ctrl+V)
+
+5️⃣  Click en el botón verde "Run"
+   → Espera 5-10 segundos
+
+✅ ¡LISTO! Verás "Success" en verde
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 ¿QUÉ HACE EL SCRIPT?
+
+✓ Agrega códigos de 6 caracteres (ABC123)
+✓ Arregla las políticas RLS de friends
+✓ Permite buscar usuarios por código
+✓ Permite ver datos de amigos para el ranking
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  ERRORES COMUNES (son normales):
+
+Si ves errores como:
+  • "function already exists" → NORMAL, ignóralo
+  • "policy already exists" → NORMAL, ignóralo
+  • "column already exists" → NORMAL, ignóralo
+
+El script tiene DROP IF EXISTS para manejar estos casos.
+
+Solo preocúpate si ves:
+  ❌ "permission denied"
+  ❌ "syntax error"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ VERIFICAR QUE FUNCIONÓ:
+
+Después de ejecutar el script, corre esto en el mismo SQL Editor:
+
+```sql
+-- Ver códigos generados
+SELECT name, friend_code FROM public.profiles;
+```
+
+Deberías ver algo como:
+  | name    | friend_code |
+  |---------|-------------|
+  | Juan    | ABC123      |
+  | María   | XYZ789      |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 PROBAR EN LA APP:
+
+1. Cierra y abre la app completamente
+2. Ve a Perfil → Verás tu código (ej: ABC123)
+3. Comparte tu código con un amigo
+4. Tu amigo va a "Amigos" e ingresa tu código
+5. ¡Deberían verse mutuamente! 🎉
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🆘 SI TIENES PROBLEMAS:
+
+1. Copia el error exacto que ves
+2. Ejecuta esto y copia el resultado:
+   ```sql
+   SELECT * FROM pg_policies WHERE tablename = 'friends';
+   ```
+3. Comparte ambos
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 DOCUMENTACIÓN COMPLETA:
+
+- ARREGLAR_AMIGOS_AHORA.md → Guía detallada
+- SOLUCION_RLS_AMIGOS.md → Explicación técnica
+- database/FIX_FRIENDS_RLS.sql → Script SQL
+
+═══════════════════════════════════════════════════════════════
+
+         🚀 ¡Ejecuta el script ahora y arregla los amigos!
+
+═══════════════════════════════════════════════════════════════

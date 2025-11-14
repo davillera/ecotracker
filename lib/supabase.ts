@@ -2,6 +2,45 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+// Storage adapter que funciona en web y móvil
+const getSupabaseStorage = () => {
+  // En web durante SSR, retornar un storage dummy
+  if (Platform.OS === 'web' && typeof window === 'undefined') {
+    return {
+      getItem: async () => null,
+      setItem: async () => {},
+      removeItem: async () => {},
+    };
+  }
+  
+  // En web con window disponible, usar localStorage
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return {
+      getItem: async (key: string) => {
+        try {
+          return window.localStorage.getItem(key);
+        } catch {
+          return null;
+        }
+      },
+      setItem: async (key: string, value: string) => {
+        try {
+          window.localStorage.setItem(key, value);
+        } catch {}
+      },
+      removeItem: async (key: string) => {
+        try {
+          window.localStorage.removeItem(key);
+        } catch {}
+      },
+    };
+  }
+  
+  // En móvil, usar AsyncStorage
+  return AsyncStorage;
+};
 
 // Obtener variables de entorno de Expo
 const expoConfig = Constants.expoConfig;
@@ -15,19 +54,21 @@ const supabaseAnonKey =
   expoConfig?.extra?.supabaseAnonKey ||
   '';
 
-// Validar credenciales
-console.log('🔧 Supabase Config:');
-console.log('  URL:', supabaseUrl ? '✅' : '❌');
-console.log('  Key:', supabaseAnonKey ? '✅' : '❌');
+// Validar credenciales (solo en cliente)
+if (typeof window !== 'undefined') {
+  console.log('🔧 Supabase Config:');
+  console.log('  URL:', supabaseUrl ? '✅' : '❌');
+  console.log('  Key:', supabaseAnonKey ? '✅' : '❌');
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('⚠️ ERROR: Credenciales de Supabase no configuradas');
-  console.error('Reinicia Expo con: npx expo start -c');
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('⚠️ ERROR: Credenciales de Supabase no configuradas');
+    console.error('Reinicia Expo con: npx expo start -c');
+  }
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: getSupabaseStorage(),
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
