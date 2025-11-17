@@ -230,7 +230,7 @@ Esta app ayuda a:
 - [x] Actualizar pantallas para usar Supabase
 - [x] CRUD completo de comidas y transporte
 - [x] Dashboard con datos reales
-- [ ] Sistema de competencia con amigos
+- [x] Sistema de competencia con amigos
 - [ ] Notificaciones push
 - [ ] Registro de consumo de energía
 - [ ] Exportar reportes PDF
